@@ -1,0 +1,68 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install Playwright browsers
+        run: mvn -B exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps chromium" -Dexec.classpathScope=test
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: mvn -B test
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports
+
+      - name: Get Allure report history
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Build Allure report
+        if: always()
+        uses: simple-elf/allure-report-action@v1.7
+        with:
+          allure_results: target/allure-results
+          allure_history: allure-history
+          allure_report: allure-report
+          keep_reports: 20
+
+      - name: Publish Allure report to GitHub Pages
+        if: always() && github.ref == 'refs/heads/master'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+
+      - name: Fail job if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
