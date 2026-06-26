@@ -51,4 +51,37 @@ class UiTest {
         assertTrue(page.url().contains("/docs/"));
         page.close();
     }
+
+    @Test
+    void siteSearchReturnsResultsAndNavigatesToDocsPage() {
+        Page page = browser.newPage();
+        ScreenshotOnFailureExtension.attachPage(page);
+        page.navigate("https://playwright.dev");
+
+        page.click("button.DocSearch-Button");
+        page.waitForSelector(".DocSearch-Modal");
+        page.fill(".DocSearch-Modal input", "fixtures");
+        page.waitForSelector("li.DocSearch-Hit");
+
+        assertTrue(page.locator("li.DocSearch-Hit").count() > 0);
+
+        page.click("li.DocSearch-Hit >> nth=0");
+        page.waitForURL("**/docs/**");
+
+        assertTrue(page.url().contains("/docs/"));
+        page.close();
+    }
+
+    @Test
+    void navigatingToUnknownPathShowsNotFoundPage() {
+        Page page = browser.newPage();
+        ScreenshotOnFailureExtension.attachPage(page);
+        page.navigate("https://playwright.dev/this-page-does-not-exist");
+        page.waitForSelector("text=We could not find what you were looking for");
+
+        assertTrue(page.title().contains("Page Not Found"));
+        assertTrue(page.url().contains("/this-page-does-not-exist"));
+        assertTrue(page.innerText("body").contains("We could not find what you were looking for"));
+        page.close();
+    }
 }
